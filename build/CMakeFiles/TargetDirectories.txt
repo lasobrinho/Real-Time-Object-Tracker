@@ -1,3 +1,0 @@
-/home/lucas/Real-Time-Object-Tracker/build/CMakeFiles/edit_cache.dir
-/home/lucas/Real-Time-Object-Tracker/build/CMakeFiles/rebuild_cache.dir
-/home/lucas/Real-Time-Object-Tracker/build/CMakeFiles/RealTimeObjectTracker.dir
