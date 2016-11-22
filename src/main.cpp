@@ -30,9 +30,7 @@ int main(int argc, char** argv)
 	videoCapture >> frame;
 
 	cvtColor(frame, background, CV_BGR2GRAY);
-	for (int i = 1; i < 4; i = i + 2) {
-		blur(background, background, Size(i, i), Point(-1, -1));
-	}
+	blur(background, background, Size(3, 3));
 
 	namedWindow(frameWindowTitle, CV_WINDOW_AUTOSIZE);
 	namedWindow(frameGrayWindowTitle, CV_WINDOW_AUTOSIZE);
@@ -52,10 +50,8 @@ int main(int argc, char** argv)
 			return 0;
 		}
 
-		for (int i = 1; i < 4; i = i + 2) {
-			blur(frame, frame, Size(i, i), Point(-1, -1));
-		}
 		cvtColor(frame, frameGray, CV_BGR2GRAY);
+		blur(frameGray, frameGray, Size(3, 3));
 
 	    absdiff(frameGray, background, diff);
 		threshold(diff, diff, 75, 255, THRESH_BINARY);
