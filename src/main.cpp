@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	Mat mat_frame, mat_frameGray, mat_background, mat_diff;
+	Mat frame, frameGray, background, diff;
 	const char *frameWindowTitle = "frame", *frameGrayWindowTitle = "frameGray";
 	const char *backgroundWindowTitle = "background", *diffWindowTitle = "diff";
 
@@ -27,11 +27,11 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	videoCapture >> mat_frame;
+	videoCapture >> frame;
 
-	cvtColor(mat_frame, mat_background, CV_BGR2GRAY);
+	cvtColor(frame, background, CV_BGR2GRAY);
 	for (int i = 1; i < 4; i = i + 2) {
-		blur(mat_background, mat_background, Size(i, i), Point(-1, -1));
+		blur(background, background, Size(i, i), Point(-1, -1));
 	}
 
 	namedWindow(frameWindowTitle, CV_WINDOW_AUTOSIZE);
@@ -46,31 +46,31 @@ int main(int argc, char** argv)
 
 	for (;;) {
 
-		if (!videoCapture.read(mat_frame)) {
+		if (!videoCapture.read(frame)) {
 			cout << " --> No more frames available for " << argv[1] << "" << endl;
 			cout << " --> Program ended" << endl;
 			return 0;
 		}
 
 		for (int i = 1; i < 4; i = i + 2) {
-			blur(mat_frame, mat_frame, Size(i, i), Point(-1, -1));
+			blur(frame, frame, Size(i, i), Point(-1, -1));
 		}
-		cvtColor(mat_frame, mat_frameGray, CV_BGR2GRAY);
+		cvtColor(frame, frameGray, CV_BGR2GRAY);
 
-	    absdiff(mat_frameGray, mat_background, mat_diff);
-		threshold(mat_diff, mat_diff, 75, 255, THRESH_BINARY);
+	    absdiff(frameGray, background, diff);
+		threshold(diff, diff, 75, 255, THRESH_BINARY);
 
 		Mat structElementSquare = getStructuringElement(MORPH_RECT, Size(2, 2));
-		erode(mat_diff, mat_diff, structElementSquare, Point(-1, -1), 1);
+		erode(diff, diff, structElementSquare, Point(-1, -1), 1);
 
 		Mat structElementRect = getStructuringElement(MORPH_RECT, Size(3, 5));
-		dilate(mat_diff, mat_diff, structElementRect, Point(-1, -1), 15);
-		erode(mat_diff, mat_diff, structElementRect, Point(-1, -1), 10);
+		dilate(diff, diff, structElementRect, Point(-1, -1), 15);
+		erode(diff, diff, structElementRect, Point(-1, -1), 10);
 
-		imshow(frameWindowTitle, mat_frame);
-		imshow(frameGrayWindowTitle, mat_frameGray);
-		imshow(backgroundWindowTitle, mat_background);
-		imshow(diffWindowTitle, mat_diff);
+		imshow(frameWindowTitle, frame);
+		imshow(frameGrayWindowTitle, frameGray);
+		imshow(backgroundWindowTitle, background);
+		imshow(diffWindowTitle, diff);
 
 		if (waitKey(10) >= 0) {
 			return 1;
