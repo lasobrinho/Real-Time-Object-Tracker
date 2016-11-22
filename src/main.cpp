@@ -1,111 +1,81 @@
 
-#include <ctype.h>
-#include <stdio.h>
 #include <iostream>
-#include <stdlib.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 
+using namespace cv;
 using namespace std;
 
-int main( int argc, char** argv )
+int main(int argc, char** argv)
 {
 
 	if (argc != 2) {
 		cerr << endl;
-		cerr << "--> [ERROR] Wrong argument list." << endl;
-		cerr << "--> Usage ./RealTimeObjectTracker [video_path]" << endl << endl;
+		cerr << " --> Wrong argument list" << endl;
+		cerr << " --> Usage ./RealTimeObjectTracker [video_path]" << endl << endl;
 		return 0;
 	}
 
-	IplImage* frame = 0, *invert, *background, *foreground, *frameCinza;
-	CvCapture* capture = 0;
-	int pix;
+	Mat mat_frame, mat_frameGray, mat_background, mat_diff;
+	const char *frameWindowTitle = "frame", *frameGrayWindowTitle = "frameGray";
+	const char *backgroundWindowTitle = "background", *diffWindowTitle = "diff";
 
-	capture = cvCaptureFromFile(argv[1]);
-
-	if (!capture) {
-		cerr << "Could not initialize capturing" << endl;
+	VideoCapture videoCapture(argv[1]);
+	if (!videoCapture.isOpened()) {
+		cerr << " --> Could not initialize capturing for file " << argv[1] << "" << endl;
+		cerr << " --> Program ended with errors" << endl;
 		return 0;
 	}
 
-	frame = cvQueryFrame(capture);
-	frame->origin = 0;
+	videoCapture >> mat_frame;
 
-	background = cvCreateImage(cvSize(frame->width, frame->height), frame->depth, 1);
-	frameCinza = cvCreateImage(cvSize(frame->width, frame->height), frame->depth, 1);
-	background->origin = 0;
-	cvCvtColor(frame, background, CV_RGB2GRAY); 
-	cvSmooth(background, background, CV_BLUR);
+	cvtColor(mat_frame, mat_background, CV_BGR2GRAY);
+	for (int i = 1; i < 4; i = i + 2) {
+		blur(mat_background, mat_background, Size(i, i), Point(-1, -1));
+	}
 
-	foreground = cvCreateImage(cvSize(frame->width, frame->height), frame->depth, 1);
-	foreground->origin = 0;
+	namedWindow(frameWindowTitle, CV_WINDOW_AUTOSIZE);
+	namedWindow(frameGrayWindowTitle, CV_WINDOW_AUTOSIZE);
+	namedWindow(backgroundWindowTitle, CV_WINDOW_AUTOSIZE);
+	namedWindow(diffWindowTitle, CV_WINDOW_AUTOSIZE);
 
-	cvNamedWindow("in", 0);
-	cvNamedWindow("fore", 0);
-	cvNamedWindow("frameCinza", 0);
-	cvNamedWindow("background", 0);
-
-	cvMoveWindow("in", 50, 50);
-	cvMoveWindow("fore", 50, 375);
-	cvMoveWindow("frameCinza", 375, 50);
-	cvMoveWindow("background", 375, 375);
-
-	IplConvKernel* structElem;
+	moveWindow(frameWindowTitle, 50, 50);
+	moveWindow(frameGrayWindowTitle, 50, 325);
+	moveWindow(backgroundWindowTitle, 375, 50);
+	moveWindow(diffWindowTitle, 375, 325);
 
 	for (;;) {
-		if(!cvGrabFrame(capture)) 
-			break;
 
-		frame = cvRetrieveFrame(capture);
+		if (!videoCapture.read(mat_frame)) {
+			cout << " --> No more frames available for " << argv[1] << "" << endl;
+			cout << " --> Program ended" << endl;
+			return 0;
+		}
 
-		cvSmooth(frame, frame, CV_BLUR);
+		for (int i = 1; i < 4; i = i + 2) {
+			blur(mat_frame, mat_frame, Size(i, i), Point(-1, -1));
+		}
+		cvtColor(mat_frame, mat_frameGray, CV_BGR2GRAY);
 
-		cvCvtColor(frame, frameCinza, CV_RGB2GRAY);		
+	    absdiff(mat_frameGray, mat_background, mat_diff);
+		threshold(mat_diff, mat_diff, 75, 255, THRESH_BINARY);
 
-	    cvAbsDiff(frameCinza, background, foreground);	
+		Mat structElementSquare = getStructuringElement(MORPH_RECT, Size(2, 2));
+		erode(mat_diff, mat_diff, structElementSquare, Point(-1, -1), 1);
 
-	    CvScalar brVal = cvScalarAll(abs(10.0));
-    	cvAddS(foreground, brVal, foreground, NULL);
-	    IplImage *pTempForeground = cvCreateImage(cvGetSize(foreground), IPL_DEPTH_8U, foreground->nChannels);
-	    cvSet( pTempForeground, cvScalarAll(1), NULL );
-	    double scale = 1.5;
-	    cvMul(foreground, pTempForeground, foreground, scale);
-	    cvReleaseImage(&pTempForeground);
+		Mat structElementRect = getStructuringElement(MORPH_RECT, Size(3, 5));
+		dilate(mat_diff, mat_diff, structElementRect, Point(-1, -1), 15);
+		erode(mat_diff, mat_diff, structElementRect, Point(-1, -1), 10);
 
-		cvThreshold(foreground, foreground, 75, 255, CV_THRESH_BINARY);
+		imshow(frameWindowTitle, mat_frame);
+		imshow(frameGrayWindowTitle, mat_frameGray);
+		imshow(backgroundWindowTitle, mat_background);
+		imshow(diffWindowTitle, mat_diff);
 
-		cvErode(foreground, foreground, NULL, 2);
-
-		structElem = cvCreateStructuringElementEx(3, 5, 1, 2, 0);
-		//structElem = cvCreateStructuringElementEx(5, 9, 3, 5, 2);
-
-		cvDilate(foreground, foreground, structElem, 15);
-		cvErode(foreground, foreground, structElem, 10);
-
-		// for(int i=0;i<background->height;i++) 
-		// 	for(int j=0;j<background->width;j++) {
-		// 		((uchar*)(background->imageData + background->widthStep*i))[j] = 255;
-		// 	}  
-
-		cvShowImage("frameCinza", frameCinza);
-		cvShowImage("background", background);
-		cvShowImage("in", frame);
-		cvShowImage("fore", foreground);
-
-		if(cvWaitKey(10) >= 0)
-			break;
-
+		if (waitKey(10) >= 0) {
+			return 1;
+		}
 	}
 
-	cvReleaseCapture(&capture);
-
-	cvDestroyWindow("in");
-	cvDestroyWindow("fore");
-	cvDestroyWindow("frameCinza");
-	cvDestroyWindow("background");
-
-	system("pause");
-
-	return 0;
+	return 1;
 }
