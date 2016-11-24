@@ -186,9 +186,9 @@ int main(int argc, char** argv) {
 
 		// Set delay between frames based whether the frame has objects or not
 		if (frameObjects.size() > 0) {
-			delayTime = 50;
+			delayTime = 35;
 		} else {
-			delayTime = 25;
+			delayTime = 2;
 		}
 
 		// Wait for user input in order to finish the program
