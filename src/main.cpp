@@ -21,7 +21,8 @@ typedef struct FrameObject
 }
 FrameObject;
 
-// Applies blur to a specific Mat, repeats the process accordingly to iterations value
+// Applies blur to a specific Mat opinter
+// Repeats the process accordingly to the iterations argument value
 void applyBlur(Mat *frame, int iterations) {
 	for (int i = 1; i <= iterations; i++) {
 		blur(*frame, *frame, Size(3, 3));
@@ -110,6 +111,8 @@ int main(int argc, char** argv) {
 		vector<Point2f> center(contours.size());
 		vector<float> radius(contours.size());
 
+		int dXYThreshold = 25;
+
 		for (int i = 0; i < contours.size(); i++) {
 			approxPolyDP(Mat(contours[i]), contours_poly[i], 3, true);
 			boundRect[i] = boundingRect(Mat(contours_poly[i]));
@@ -123,7 +126,7 @@ int main(int argc, char** argv) {
 				int dY = abs(center[i].y - frameObjects[j].centerY);
 				int dArea = abs(area - frameObjects[j].area);
 
-				if (dX <= 25 && dY <= 25) {
+				if (dX <= dXYThreshold && dY <= dXYThreshold) {
 					frameObjects[j].centerX = center[i].x;
 					frameObjects[j].centerY = center[i].y;
 					frameObjects[j].area = area;
@@ -136,7 +139,7 @@ int main(int argc, char** argv) {
 			if (!found) {
 				Scalar color = Scalar(rng.uniform(127, 255), rng.uniform(127,255), rng.uniform(127,255));
 				FrameObject currentObject(rng.uniform(0, 100), center[i].x, center[i].y, area, boundRect[i], color);
-				//frameObjects.push_back(currentObject);
+				frameObjects.push_back(currentObject);
 			}			
 		}
 
@@ -158,7 +161,7 @@ int main(int argc, char** argv) {
 					int dY = abs(center[i].y - frameObjects[j].centerY);
 					int dArea = abs(area - frameObjects[j].area);
 										
-					if (!(dX <= 25 && dY <= 25)) {
+					if (!(dX <= dXYThreshold && dY <= dXYThreshold)) {
 						frameObjects.erase(frameObjects.begin() + j);
 					}
 				}
