@@ -21,6 +21,13 @@ typedef struct FrameObject
 }
 FrameObject;
 
+// Applies blur to a specific Mat, repeats the process accordingly to iterations value
+void applyBlur(Mat *frame, int iterations) {
+	for (int i = 1; i <= iterations; i++) {
+		blur(*frame, *frame, Size(3, 3));
+	}
+}
+
 int main(int argc, char** argv) {
 
 	// Check if the user input is correct to proceed
@@ -52,10 +59,7 @@ int main(int argc, char** argv) {
 	// Capture the background frame, convert it to gray and blur it
 	videoCapture >> frame;
 	cvtColor(frame, background, CV_BGR2GRAY);
-	blur(background, background, Size(3, 3));
-	blur(background, background, Size(3, 3));
-	blur(background, background, Size(3, 3));
-	blur(background, background, Size(3, 3));
+	applyBlur(&background, 4);
 
 	// Initialize windows to display the output
 	namedWindow(frameWindowTitle, CV_WINDOW_AUTOSIZE);
@@ -81,10 +85,7 @@ int main(int argc, char** argv) {
 
 		// Convert to gray and blur the frame
 		cvtColor(frame, frameGray, CV_BGR2GRAY);
-		blur(frameGray, frameGray, Size(3, 3));
-		blur(frameGray, frameGray, Size(3, 3));
-		blur(frameGray, frameGray, Size(3, 3));
-		blur(frameGray, frameGray, Size(3, 3));
+		applyBlur(&frameGray, 4);
 
 	    // Find the difference between the gray frame and the background
 	    absdiff(frameGray, background, diff);
@@ -135,7 +136,7 @@ int main(int argc, char** argv) {
 			if (!found) {
 				Scalar color = Scalar(rng.uniform(127, 255), rng.uniform(127,255), rng.uniform(127,255));
 				FrameObject currentObject(rng.uniform(0, 100), center[i].x, center[i].y, area, boundRect[i], color);
-				frameObjects.push_back(currentObject);
+				//frameObjects.push_back(currentObject);
 			}			
 		}
 
