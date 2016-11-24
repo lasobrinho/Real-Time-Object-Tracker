@@ -21,11 +21,75 @@ typedef struct FrameObject
 }
 FrameObject;
 
-// Applies blur to a specific Mat opinter
-// Repeats the process accordingly to the iterations argument value
+typedef struct Background
+{
+    Mat bgFrame;
+    vector<vector<int> > ttl;
+    Background (Mat bgF) : bgFrame(bgF) {};
+}
+Background;
+
+// Applies blur to a specific Mat pointer
+// Repeats the process accordingly to the iterations parameter value
 void applyBlur(Mat *frame, int iterations) {
 	for (int i = 1; i <= iterations; i++) {
 		blur(*frame, *frame, Size(3, 3));
+	}
+}
+
+void removeNoise(Mat *diff, Background *bg) {
+	int rows = diff->rows;
+	int cols = diff->cols;
+	
+	for(int i = 0; i < rows; i++) {
+		for (int j = 0; j < cols; j++) {
+			if (diff->at<uchar>(i-1, j-1) == 0 && diff->at<uchar>(i, j-1) == 0 && diff->at<uchar>(i+1, j-1) == 0
+				&&
+				diff->at<uchar>(i-1, j)   == 0 && diff->at<uchar>(i, j) == 255 && diff->at<uchar>(i+1, j) 	== 0
+				&&
+				diff->at<uchar>(i-1, j+1) == 0 && diff->at<uchar>(i, j+1) == 0 && diff->at<uchar>(i+1, j+1) == 0) 
+			{
+				diff->at<uchar>(i, j) = 0;
+			}
+		}
+	}
+
+	int threshold = 25;
+
+	for(int i = 0; i < rows; i++) {
+		for (int j = 0; j < cols; j++) {
+
+			if (bg->ttl.at(i).at(j) <= threshold) {
+				if (diff->at<uchar>(i, j) == 255) {
+					bg->ttl.at(i).at(j) = bg->ttl.at(i).at(j) + (threshold / 10);
+					if (bg->ttl.at(i).at(j) > threshold) {
+						diff->at<uchar>(i, j) = 0;
+					}
+				} else {
+					bg->ttl.at(i).at(j)--;
+				}			
+			} else {
+				if (bg->ttl.at(i).at(j) < (threshold * threshold)) {
+					bg->ttl.at(i).at(j)++;
+					diff->at<uchar>(i, j) = 0;
+				} else {
+					bg->ttl.at(i).at(j) = 0;
+				}
+			}
+		}
+	}
+
+	for(int i = 0; i < rows; i++) {
+		for (int j = 0; j < cols; j++) {
+			if (diff->at<uchar>(i-1, j-1) == 0 && diff->at<uchar>(i, j-1) == 0 && diff->at<uchar>(i+1, j-1) == 0
+				&&
+				diff->at<uchar>(i-1, j)   == 0 && diff->at<uchar>(i, j) == 255 && diff->at<uchar>(i+1, j) 	== 0
+				&&
+				diff->at<uchar>(i-1, j+1) == 0 && diff->at<uchar>(i, j+1) == 0 && diff->at<uchar>(i+1, j+1) == 0) 
+			{
+				diff->at<uchar>(i, j) = 0;
+			}
+		}
 	}
 }
 
@@ -41,13 +105,16 @@ int main(int argc, char** argv) {
 
 	// Initialize program variables
 	Mat frame, frameGray, background, diff, diff_clone;
+	Mat test_mat;
 	const char *frameWindowTitle = "frame", *frameGrayWindowTitle = "frameGray";
 	const char *backgroundWindowTitle = "background", *diffWindowTitle = "diff";
+	const char *testWindowTitle = "test";
 	vector<vector<Point> > contours;
   	vector<Vec4i> hierarchy;
   	RNG rng(time(NULL));
   	vector<FrameObject> frameObjects;
   	int delayTime;
+  	int frameCounter = 0;
 
 	// Start VideoCapture using the file name passed as program argument
 	VideoCapture videoCapture(argv[1]);
@@ -60,7 +127,12 @@ int main(int argc, char** argv) {
 	// Capture the background frame, convert it to gray and blur it
 	videoCapture >> frame;
 	cvtColor(frame, background, CV_BGR2GRAY);
-	applyBlur(&background, 4);
+	background.convertTo(background, -1, 1.5, 0);
+	applyBlur(&background, 1);
+
+	Background bg_test(background);
+	vector<vector<int> > ttl_temp(background.rows, vector<int>(background.cols));
+	bg_test.ttl = ttl_temp;
 
 	// Initialize windows to display the output
 	namedWindow(frameWindowTitle, CV_WINDOW_AUTOSIZE);
@@ -86,20 +158,24 @@ int main(int argc, char** argv) {
 
 		// Convert to gray and blur the frame
 		cvtColor(frame, frameGray, CV_BGR2GRAY);
-		applyBlur(&frameGray, 4);
+		frameGray.convertTo(frameGray, -1, 1.5, 0);
+		applyBlur(&frameGray, 1);
 
 	    // Find the difference between the gray frame and the background
 	    absdiff(frameGray, background, diff);
-		threshold(diff, diff, 50, 255, THRESH_BINARY);
+		threshold(diff, diff, 60, 255, THRESH_BINARY);
+
+		removeNoise(&diff, &bg_test);
+		//adaptativeBackground(&diff, &bg_test);
 
 		// Remove noise using erode() function
 		Mat structElementSquare = getStructuringElement(MORPH_RECT, Size(2, 2));
-		erode(diff, diff, structElementSquare, Point(-1, -1), 1);
+		erode(diff, diff, structElementSquare, Point(-1, -1), 2);
 
 		// Remove gaps inside the objects found
 		Mat structElementRect = getStructuringElement(MORPH_RECT, Size(3, 5));
-		dilate(diff, diff, structElementRect, Point(1, 2), 15);
-		erode(diff, diff, structElementRect, Point(1, 2), 10);
+		dilate(diff, diff, structElementRect, Point(-1, -1), 10);
+		erode(diff, diff, structElementRect, Point(-1, -1), 7);
 
 		// Make a copy of the diff Mat, as it will be modified when applying findContours()
 		diff_clone = diff.clone();
@@ -187,10 +263,11 @@ int main(int argc, char** argv) {
 		imshow(frameGrayWindowTitle, frameGray);
 		imshow(backgroundWindowTitle, background);
 		imshow(diffWindowTitle, diff_clone);
+		//imshow(testWindowTitle, test_mat);
 
 		// Set delay between frames based whether the frame has objects or not
 		if (frameObjects.size() > 0) {
-			delayTime = 35;
+			delayTime = 5;
 		} else {
 			delayTime = 2;
 		}
@@ -199,6 +276,8 @@ int main(int argc, char** argv) {
 		if (waitKey(delayTime) >= 0) {
 			return 1;
 		}
+
+		frameCounter++;
 
 	}
 
